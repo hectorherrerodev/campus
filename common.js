@@ -1,7 +1,7 @@
 // ============================================================
 // Formularios y piezas reutilizadas entre pantallas
 // ============================================================
-import { esc, icon, formModal, toast, relDay, fmtShort, today, diffDays, DIAS } from './util.js';
+import { esc, icon, formModal, toast, relDay, fmtShort, today, diffDays, DIAS, dow, parseISO } from './util.js';
 import * as store from './store.js';
 
 export const TIPOS_EVENTO = [['entrega', 'Entrega'], ['examen', 'Examen'], ['evento', 'Evento / clase especial'], ['recordatorio', 'Recordatorio'], ['festivo', 'Festivo / no lectivo']];
@@ -40,30 +40,52 @@ function sinAsignaturas() {
 }
 
 // ---------- Clase del horario ----------
+let ultimoModo = 'semanal';
+
 export function claseForm(c = {}) {
   if (sinAsignaturas()) return;
   const aj = store.state.ajustes;
   const nuevo = !c.id;
+  const nDias = aj.sabado ? 6 : 5;
+  const comunes = [
+    { name: 'inicio', label: 'Empieza', type: 'time', value: c.inicio || '08:15', required: true },
+    { name: 'fin', label: 'Termina', type: 'time', value: c.fin || '09:10', required: true },
+    { name: 'aula', label: 'Aula', value: c.aula ?? store.asignatura(c.asignaturaId)?.aula ?? '', placeholder: 'Opcional' },
+    { name: 'nota', label: 'Nota', value: c.nota, placeholder: 'Ej.: desdoble, recuperación' },
+  ];
+  let campos;
+  if (nuevo) {
+    campos = [
+      { name: 'modo', label: '¿Cuándo es?', type: 'seg', options: [['semanal', 'Cada semana'], ['fechas', 'Fechas concretas']], value: c.modo || ultimoModo, full: true },
+      { name: 'dias', label: 'Días de la semana', type: 'days', value: c.dia != null ? [c.dia] : [], count: nDias, required: true, full: true, hint: 'Se repite todas las semanas hasta fin de curso. Puedes marcar varios días.', showIf: ['modo', 'semanal'] },
+      { name: 'fechas', label: 'Fechas', type: 'fechas', value: c.fecha ? [c.fecha] : [], required: true, full: true, hint: 'Elige un día y pulsa Añadir. Puedes añadir todas las fechas que quieras.', showIf: ['modo', 'fechas'] },
+    ];
+  } else if (c.fecha) {
+    campos = [{ name: 'fecha', label: 'Fecha', type: 'date', value: c.fecha, required: true, full: true }];
+  } else {
+    campos = [{ name: 'dia', label: 'Día (cada semana)', type: 'select', options: DIAS.slice(0, nDias).map((d, i) => [i, d]), value: c.dia, full: true }];
+  }
   formModal({
-    title: nuevo ? 'Añadir clase al horario' : 'Editar clase',
-    fields: [
-      { name: 'asignaturaId', label: 'Asignatura', type: 'select', options: asigOptions(false), value: c.asignaturaId, required: true, full: true },
-      nuevo
-        ? { name: 'dias', label: 'Días', type: 'days', value: c.dia != null ? [c.dia] : [], count: aj.sabado ? 6 : 5, required: true, full: true, hint: 'Puedes marcar varios días a la vez' }
-        : { name: 'dia', label: 'Día', type: 'select', options: DIAS.slice(0, aj.sabado ? 6 : 5).map((d, i) => [i, d]), value: c.dia, full: true },
-      { name: 'inicio', label: 'Empieza', type: 'time', value: c.inicio || '08:15', required: true },
-      { name: 'fin', label: 'Termina', type: 'time', value: c.fin || '09:10', required: true },
-      { name: 'aula', label: 'Aula', value: c.aula ?? store.asignatura(c.asignaturaId)?.aula ?? '', placeholder: 'Opcional' },
-      { name: 'nota', label: 'Nota', value: c.nota, placeholder: 'Ej.: desdoble, grupo B' },
-    ],
+    title: nuevo ? 'Añadir clase' : c.fecha ? 'Editar clase (fecha concreta)' : 'Editar clase semanal',
+    fields: [{ name: 'asignaturaId', label: 'Asignatura', type: 'select', options: asigOptions(false), value: c.asignaturaId, required: true, full: true }, ...campos, ...comunes],
     onSubmit: (d) => {
       if (d.fin <= d.inicio) { toast('La hora de fin debe ser posterior al inicio'); return false; }
       if (!d.aula) d.aula = store.asignatura(d.asignaturaId)?.aula || '';
-      if (nuevo) { d.dias.forEach((dia) => store.put('clases', { asignaturaId: d.asignaturaId, dia, inicio: d.inicio, fin: d.fin, aula: d.aula, nota: d.nota }, { silent: true })); store.emit(); toast(d.dias.length > 1 ? `${d.dias.length} clases añadidas` : 'Clase añadida'); }
-      else { store.put('clases', { ...c, ...d, dia: Number(d.dia) }); toast('Clase guardada'); }
+      const base = { asignaturaId: d.asignaturaId, inicio: d.inicio, fin: d.fin, aula: d.aula, nota: d.nota };
+      if (nuevo) {
+        ultimoModo = d.modo;
+        const lista = d.modo === 'fechas' ? d.fechas.map((fecha) => ({ ...base, fecha, dia: dow(parseISO(fecha)) })) : d.dias.map((dia) => ({ ...base, dia }));
+        lista.forEach((x) => store.put('clases', x, { silent: true }));
+        store.emit();
+        toast(lista.length > 1 ? `${lista.length} clases añadidas` : 'Clase añadida');
+      } else if (c.fecha) {
+        store.put('clases', { ...c, ...base, fecha: d.fecha, dia: dow(parseISO(d.fecha)) }); toast('Clase guardada');
+      } else {
+        store.put('clases', { ...c, ...base, dia: Number(d.dia) }); toast('Clase guardada');
+      }
     },
     onDelete: nuevo ? null : () => { store.remove('clases', c.id); toast('Clase eliminada'); },
-    deleteText: 'Se quitará esta clase del horario.',
+    deleteText: c.fecha ? 'Se quitará la clase de ese día.' : 'Se quitará esta clase de todas las semanas.',
   });
 }
 

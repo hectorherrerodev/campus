@@ -43,20 +43,26 @@ export function icsEventos() {
   return envolver(ev);
 }
 
-/** Horario semanal repetido hasta el fin de curso. */
+/** Horario: clases semanales (repetidas hasta fin de curso, sin festivos) y clases de fecha concreta. */
 export function icsHorario() {
   const fin = store.state.ajustes.finCurso || addDays(today(), 270);
   const hoy = today();
-  const ev = store.all('clases').map((c) => {
+  const festivos = store.all('eventos').filter((e) => e.tipo === 'festivo' && e.fecha >= hoy).map((e) => e.fecha);
+  const ev = store.all('clases').filter((c) => !c.fecha || c.fecha >= hoy).map((c) => {
     const a = store.asignatura(c.asignaturaId);
+    const comun = [`SUMMARY:${esc(a ? a.abrev || a.nombre : 'Clase')}`, `LOCATION:${esc(c.aula)}`, `DESCRIPTION:${esc([a?.nombre, c.nota].filter(Boolean).join(' · '))}`];
+    if (c.fecha) {
+      return ['BEGIN:VEVENT', `UID:${c.id}@campus-daw`, `DTSTAMP:${stamp()}`,
+        `DTSTART;TZID=${TZ}:${dt(c.fecha, c.inicio)}`, `DTEND;TZID=${TZ}:${dt(c.fecha, c.fin)}`, ...comun, 'END:VEVENT'].join('\r\n');
+    }
     // Primer día que coincide con el día de la semana de la clase
     let f = hoy;
     for (let i = 0; i < 7; i++) { if (dow(parseISO(f)) === c.dia) break; f = addDays(f, 1); }
     const byday = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'][c.dia];
+    const exdates = festivos.filter((x) => dow(parseISO(x)) === c.dia).map((x) => `EXDATE;TZID=${TZ}:${dt(x, c.inicio)}`);
     return ['BEGIN:VEVENT', `UID:${c.id}@campus-daw`, `DTSTAMP:${stamp()}`,
       `DTSTART;TZID=${TZ}:${dt(f, c.inicio)}`, `DTEND;TZID=${TZ}:${dt(f, c.fin)}`,
-      `RRULE:FREQ=WEEKLY;BYDAY=${byday};UNTIL=${fin.replace(/-/g, '')}T235959Z`,
-      `SUMMARY:${esc(a ? a.abrev || a.nombre : 'Clase')}`, `LOCATION:${esc(c.aula)}`, `DESCRIPTION:${esc(a?.nombre)}`,
+      `RRULE:FREQ=WEEKLY;BYDAY=${byday};UNTIL=${fin.replace(/-/g, '')}T235959Z`, ...exdates, ...comun,
       'END:VEVENT'].join('\r\n');
   });
   return envolver(ev);

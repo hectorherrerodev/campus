@@ -58,6 +58,7 @@ export const COLORES = ['#2342b5', '#e0613a', '#178a57', '#b53a8f', '#d9a300', '
 // ---------- Iconos (SVG en línea) ----------
 const P = {
   hoy: '<path d="M12 3v2M12 19v2M5 12H3M21 12h-2M6.3 6.3 4.9 4.9M19.1 19.1l-1.4-1.4M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/><circle cx="12" cy="12" r="4"/>',
+  casa: '<path d="M3.5 10.5 12 3.5l8.5 7"/><path d="M5.5 9v10.5a1 1 0 0 0 1 1H10v-6h4v6h3.5a1 1 0 0 0 1-1V9"/>',
   agenda: '<rect x="3" y="4.5" width="18" height="16" rx="3"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/><path d="M7.5 13.5h3M7.5 16.5h6"/>',
   horario: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   libros: '<path d="M4 19V5a2 2 0 0 1 2-2h11v16H6a2 2 0 0 0-2 2Zm0 0a2 2 0 0 0 2 2h13"/><path d="M8 7h6"/>',
@@ -170,15 +171,43 @@ export function confirmar(texto, { ok = 'Eliminar', peligro = true } = {}) {
  * type: text | textarea | select | date | time | number | email | url | color | days | password
  */
 export function formModal({ title, fields, submit = 'Guardar', onSubmit, onDelete, deleteText = 'Se eliminará para siempre.' }) {
-  const html = `<form class="form-grid" id="fm" novalidate>${fields.map(fieldHTML).join('')}</form>`;
+  const html = `<form class="form-grid" id="fm" novalidate>${fields.map((f) => {
+    const h = fieldHTML(f);
+    return f.showIf ? h.replace(/^<(label|div) /, `<$1 data-show-if="${f.showIf[0]}=${f.showIf[1]}" `) : h;
+  }).join('')}</form>`;
   const foot = `${onDelete ? `<button class="btn danger" data-del type="button">${icon('trash')} Eliminar</button>` : ''}
     <span class="spacer"></span><button class="btn" data-cancel type="button">Cancelar</button>
     <button class="btn primary" data-ok type="button">${esc(submit)}</button>`;
   const m = modal({ title, body: html, foot });
   const form = m.el.querySelector('#fm');
+  // Campos que solo se ven según otro campo (showIf)
+  const visible = (f) => !f.showIf || readForm(form, fields)[f.showIf[0]] === f.showIf[1];
+  const refrescar = () => $$('[data-show-if]', form).forEach((el) => {
+    const [n, v] = el.dataset.showIf.split('=');
+    el.hidden = readForm(form, fields)[n] !== v;
+  });
+  form.addEventListener('change', refrescar);
+  refrescar();
+  // Selector de varias fechas
+  $$('.fechas', form).forEach((w) => {
+    const hidden = w.querySelector('input[type="hidden"]');
+    const inp = w.querySelector('input[type="date"]');
+    const lista = w.querySelector('.chips');
+    let fechas = JSON.parse(hidden.value || '[]');
+    const pintar = () => {
+      fechas.sort();
+      hidden.value = JSON.stringify(fechas);
+      lista.innerHTML = fechas.length ? fechas.map((d) => `<button type="button" class="chip" data-quitar="${d}" title="Quitar">${fmtShort(d)} ${icon('x')}</button>`).join('') : '<span class="muted tiny">Aún no has añadido ninguna fecha</span>';
+    };
+    const añadir = () => { if (inp.value && !fechas.includes(inp.value)) { fechas.push(inp.value); pintar(); } };
+    w.querySelector('[data-add]').onclick = añadir;
+    inp.addEventListener('change', añadir);
+    lista.onclick = (e) => { const b = e.target.closest('[data-quitar]'); if (b) { fechas = fechas.filter((d) => d !== b.dataset.quitar); pintar(); } };
+    pintar();
+  });
   const send = async () => {
     const data = readForm(form, fields);
-    const missing = fields.find((f) => f.required && (data[f.name] === '' || data[f.name] == null || (Array.isArray(data[f.name]) && !data[f.name].length)));
+    const missing = fields.find((f) => f.required && visible(f) && (data[f.name] === '' || data[f.name] == null || (Array.isArray(data[f.name]) && !data[f.name].length)));
     if (missing) { toast(`Falta: ${missing.label}`); form.querySelector(`[name="${missing.name}"]`)?.focus(); return; }
     const r = await onSubmit(data);
     if (r !== false) m.close();
@@ -208,6 +237,13 @@ function fieldHTML(f) {
       const n = f.count || 5;
       return `<div class="field ${f.full ? 'full' : ''}"><span>${esc(f.label)}${req}</span><div class="daypick">${DIAS_3.slice(0, n).map((d, i) => `<label><input type="checkbox" name="${f.name}" value="${i}" ${sel.has(i) ? 'checked' : ''}><span>${d}</span></label>`).join('')}</div>${hint}</div>`;
     }
+    case 'seg':
+      return `<div class="field ${f.full ? 'full' : ''}"><span>${esc(f.label)}</span><div class="seg" role="radiogroup">${f.options.map(([val, txt]) => `<label class="seg-opt"><input type="radio" name="${f.name}" value="${esc(val)}" ${String(val) === String(v) ? 'checked' : ''}><span>${esc(txt)}</span></label>`).join('')}</div>${hint}</div>`;
+    case 'fechas':
+      return `<div class="field fechas ${f.full ? 'full' : ''}"><span>${esc(f.label)}${req}</span>
+        <input type="hidden" name="${f.name}" value="${esc(JSON.stringify(Array.isArray(v) ? v : []))}">
+        <div class="row" style="flex-wrap:nowrap"><input class="input" type="date" id="${id}"><button type="button" class="btn" data-add>${icon('plus')} Añadir</button></div>
+        <div class="chips"></div>${hint}</div>`;
     case 'color':
       return `<div class="field ${f.full ? 'full' : ''}"><span>${esc(f.label)}</span><div class="swatches">${COLORES.map((c, i) => `<label title="${c}"><input type="radio" name="${f.name}" value="${c}" ${c === v || (!v && i === 0) ? 'checked' : ''}><span style="--c:${c}"></span></label>`).join('')}</div></div>`;
     default:
@@ -219,6 +255,8 @@ function readForm(form, fields) {
   const out = {};
   for (const f of fields) {
     if (f.type === 'days') out[f.name] = $$(`[name="${f.name}"]:checked`, form).map((i) => Number(i.value));
+    else if (f.type === 'seg') out[f.name] = form.querySelector(`[name="${f.name}"]:checked`)?.value || '';
+    else if (f.type === 'fechas') { try { out[f.name] = JSON.parse(form.querySelector(`[name="${f.name}"]`).value || '[]'); } catch { out[f.name] = []; } }
     else if (f.type === 'color') out[f.name] = form.querySelector(`[name="${f.name}"]:checked`)?.value || COLORES[0];
     else {
       const el = form.querySelector(`[name="${f.name}"]`);

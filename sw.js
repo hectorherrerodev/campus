@@ -1,9 +1,9 @@
 // Service worker: guarda la app para que funcione sin conexión.
 // Sube el número de versión cuando publiques cambios para forzar la actualización.
-const VERSION = 'campus-v1';
+const VERSION = 'campus-v2';
 const APP = [
   './', 'index.html', 'manifest.webmanifest', 'config.js', 'styles.css',
-  'app.js', 'util.js', 'store.js', 'sync.js', 'files.js', 'demo.js', 'ics.js',
+  'app.js', 'clases.js', 'util.js', 'store.js', 'sync.js', 'files.js', 'demo.js', 'ics.js',
   'common.js', 'hoy.js', 'horario.js', 'calendario.js',
   'asignaturas.js', 'documentos.js', 'tests.js', 'academia.js',
   'leccion.js', 'ajustes.js', 'mas.js',
@@ -28,15 +28,24 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(req.url);
   // Supabase (datos y archivos) siempre por red
   if (url.hostname.endsWith('supabase.co') || url.hostname.endsWith('supabase.in')) return;
-  // Resto: primero caché y actualiza en segundo plano (fuentes y librerías también)
+  // Archivos de la app: primero internet (así ves siempre la última versión) y, sin conexión, la copia guardada
+  if (url.origin === location.origin) {
+    e.respondWith(
+      fetch(req).then((res) => {
+        if (res.ok) { const copia = res.clone(); caches.open(VERSION).then((c) => c.put(req, copia)); }
+        return res;
+      }).catch(() => caches.match(req, { ignoreSearch: true }).then((hit) => hit || caches.match('index.html'))),
+    );
+    return;
+  }
+  // Fuentes y librerías externas: primero la caché
   e.respondWith(
     caches.open(VERSION).then(async (cache) => {
-      const hit = await cache.match(req, { ignoreSearch: url.origin === location.origin });
-      const red = fetch(req).then((res) => {
-        if (res && (res.ok || res.type === 'opaque')) cache.put(req, res.clone());
-        return res;
-      }).catch(() => hit);
-      return hit || red;
+      const hit = await cache.match(req);
+      if (hit) return hit;
+      const res = await fetch(req);
+      if (res && (res.ok || res.type === 'opaque')) cache.put(req, res.clone());
+      return res;
     }),
   );
 });

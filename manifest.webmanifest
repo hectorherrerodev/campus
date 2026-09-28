@@ -3,7 +3,7 @@
   "short_name": "Campus",
   "description": "Organizador de clases, entregas y apuntes con una academia para aprender a programar.",
   "lang": "es",
-  "start_url": "./#/hoy",
+  "start_url": "./#/inicio",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",

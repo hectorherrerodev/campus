@@ -502,3 +502,16 @@ pre.code .gap { background: var(--hl); color: #1a2030; padding: 0 6px; border-ra
 }
 .finish > svg { width: 104px; height: 104px; color: #e0a800; filter: drop-shadow(0 6px 0 color-mix(in srgb, #e0a800 35%, transparent)); animation: pop .4s ease-out; }
 .finish .stat svg { width: 22px; height: 22px; }
+.seg-opt { cursor: pointer; }
+.seg-opt input { position: absolute; opacity: 0; pointer-events: none; }
+.seg-opt span { display: block; padding: 7px 14px; border-radius: 9px; font-weight: 600; color: var(--muted); font-size: 14px; }
+.seg-opt input:checked + span { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+.seg-opt input:focus-visible + span { outline: 2px solid var(--pen); }
+.fechas .chip svg { width: 13px; height: 13px; }
+.fechas .chip { cursor: pointer; }
+.day-group + .day-group { margin-top: 14px; }
+.day-label { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 4px; }
+.day-label.today { color: var(--pen); }
+.sched-h small { display: block; font-weight: 500; color: var(--muted); font-size: 11px; }
+.blk.puntual { border-left-style: dashed; }
+.sched-col.fest { background-image: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--warn) 12%, transparent) 6px 8px), linear-gradient(var(--line) 1px, transparent 1px); background-size: auto, 100% var(--hour); }

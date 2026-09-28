@@ -1,7 +1,8 @@
 // ============================================================
 // Asignaturas: lista y ficha con pestañas
 // ============================================================
-import { esc, icon, linkify, today, DIAS, toMin } from './util.js';
+import { esc, icon, linkify, today, DIAS, toMin, fmtShort } from './util.js';
+import { horasSemana, lunesDe } from './clases.js';
 import * as store from './store.js';
 import { asignaturaForm, claseForm, eventoForm, eventoItem, manejarEvento, notaForm, calcularMedia } from './common.js';
 import * as docs from './documentos.js';
@@ -17,14 +18,14 @@ export function renderLista(root) {
     </div>
     ${lista.length ? `<div class="cards">${lista.map((a) => {
       const pend = store.all('eventos').filter((e) => e.asignaturaId === a.id && !e.hecho && e.fecha >= t).length;
-      const h = store.all('clases').filter((c) => c.asignaturaId === a.id).reduce((s, c) => s + (toMin(c.fin) - toMin(c.inicio)), 0) / 60;
+      const h = horasSemana(lunesDe(t), a.id);
       const { media } = calcularMedia(a.id);
       return `<a class="card subj-card" href="#/asignatura/${a.id}" style="--c:${a.color}">
         <span class="subj-abbr">${esc(a.abrev || '')}</span>
         <h3>${esc(a.nombre)}</h3>
         ${a.profesor ? `<span class="muted small">${esc(a.profesor)}</span>` : ''}
         <div class="subj-meta num">
-          <span>${String(+h.toFixed(1)).replace('.', ',')} h/sem</span>
+          <span>${String(+h.toFixed(1)).replace('.', ',')} h esta semana</span>
           <span>${pend} pendiente${pend === 1 ? '' : 's'}</span>
           ${media != null ? `<span>Media ${media.toFixed(2).replace('.', ',')}</span>` : ''}
         </div>
@@ -93,7 +94,11 @@ function cuerpo(a, tab) {
   const evs = store.all('eventos').filter((e) => e.asignaturaId === id).sort((x, y) => x.fecha.localeCompare(y.fecha));
   const futuras = evs.filter((e) => e.fecha >= t || !e.hecho);
   const pasadas = evs.filter((e) => e.fecha < t && e.hecho);
-  const clases = store.all('clases').filter((c) => c.asignaturaId === id).sort((x, y) => x.dia - y.dia || toMin(x.inicio) - toMin(y.inicio));
+  const suyas = store.all('clases').filter((c) => c.asignaturaId === id);
+  const semanales = suyas.filter((c) => !c.fecha).sort((x, y) => x.dia - y.dia || toMin(x.inicio) - toMin(y.inicio));
+  const puntuales = suyas.filter((c) => c.fecha && c.fecha >= t).sort((x, y) => (x.fecha + x.inicio).localeCompare(y.fecha + y.inicio));
+  const clasesPasadas = suyas.filter((c) => c.fecha && c.fecha < t).length;
+  const clases = [...semanales, ...puntuales];
   return `<div class="grid-2">
     <div class="stack">
       <div class="card">
@@ -110,9 +115,10 @@ function cuerpo(a, tab) {
       <div class="card-head"><h2>Clases</h2><button class="btn sm" data-act="nueva-clase">${icon('plus')} Añadir</button></div>
       ${clases.length ? `<div class="list">${clases.map((c) => `<button class="item" data-act="edit-clase" data-id="${c.id}">
         <span class="stripe" style="background:${a.color}"></span>
-        <div class="grow"><div class="title">${DIAS[c.dia]}</div><div class="sub">${c.inicio}–${c.fin}${c.aula ? ' · ' + esc(c.aula) : ''}${c.nota ? ' · ' + esc(c.nota) : ''}</div></div>
+        <div class="grow"><div class="title">${c.fecha ? fmtShort(c.fecha) : 'Cada ' + DIAS[c.dia].toLowerCase()}</div><div class="sub">${c.inicio}–${c.fin}${c.aula ? ' · ' + esc(c.aula) : ''}${c.nota ? ' · ' + esc(c.nota) : ''}</div></div>
         ${icon('edit')}
-      </button>`).join('')}</div>` : `<p class="muted small">Sin clases en el horario.</p>`}
+      </button>`).join('')}</div>` : `<p class="muted small">Sin clases próximas.</p>`}
+      ${clasesPasadas ? `<p class="tiny muted" style="margin-top:8px">${clasesPasadas} clase${clasesPasadas > 1 ? 's' : ''} de fechas pasadas.</p>` : ''}
     </div>
   </div>`;
 }

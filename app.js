@@ -18,7 +18,8 @@ import * as ajustes from './ajustes.js';
 import * as mas from './mas.js';
 
 const ROUTES = [
-  { path: 'hoy', view: hoy.render, nav: 'hoy', title: 'Hoy' },
+  { path: 'inicio', view: hoy.render, nav: 'hoy', title: 'Inicio' },
+  { path: 'hoy', view: hoy.render, nav: 'hoy', title: 'Inicio' },
   { path: 'horario', view: horario.render, nav: 'agenda', title: 'Horario' },
   { path: 'calendario', view: calendario.render, nav: 'agenda', title: 'Calendario' },
   { path: 'asignaturas', view: asignaturas.renderLista, nav: 'asignaturas', title: 'Asignaturas' },
@@ -36,7 +37,7 @@ const ROUTES = [
 ];
 
 const NAV = [
-  { id: 'hoy', label: 'Hoy', href: '#/hoy', icon: 'hoy' },
+  { id: 'hoy', label: 'Inicio', href: '#/inicio', icon: 'casa' },
   { id: 'agenda', label: 'Agenda', href: '#/horario', icon: 'agenda' },
   { id: 'asignaturas', label: 'Asignaturas', href: '#/asignaturas', icon: 'libros' },
   { id: 'documentos', label: 'Documentos', href: '#/documentos', icon: 'doc' },
