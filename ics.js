@@ -50,7 +50,7 @@ export function icsHorario() {
   const festivos = store.all('eventos').filter((e) => e.tipo === 'festivo' && e.fecha >= hoy).map((e) => e.fecha);
   const ev = store.all('clases').filter((c) => !c.fecha || c.fecha >= hoy).map((c) => {
     const a = store.asignatura(c.asignaturaId);
-    const comun = [`SUMMARY:${esc(a ? a.abrev || a.nombre : 'Clase')}`, `LOCATION:${esc(c.aula)}`, `DESCRIPTION:${esc([a?.nombre, c.nota].filter(Boolean).join(' · '))}`];
+    const comun = [`SUMMARY:${esc(a ? a.nombre : 'Clase')}`, `LOCATION:${esc(c.aula)}`, `DESCRIPTION:${esc([a?.abrev, c.nota].filter(Boolean).join(' · '))}`];
     if (c.fecha) {
       return ['BEGIN:VEVENT', `UID:${c.id}@campus-daw`, `DTSTAMP:${stamp()}`,
         `DTSTART;TZID=${TZ}:${dt(c.fecha, c.inicio)}`, `DTEND;TZID=${TZ}:${dt(c.fecha, c.fin)}`, ...comun, 'END:VEVENT'].join('\r\n');
