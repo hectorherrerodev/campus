@@ -515,3 +515,6 @@ pre.code .gap { background: var(--hl); color: #1a2030; padding: 0 6px; border-ra
 .sched-h small { display: block; font-weight: 500; color: var(--muted); font-size: 11px; }
 .blk.puntual { border-left-style: dashed; }
 .sched-col.fest { background-image: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--warn) 12%, transparent) 6px 8px), linear-gradient(var(--line) 1px, transparent 1px); background-size: auto, 100% var(--hour); }
+/* Iconos sueltos dentro de listas y cabeceras: tamaño fijo */
+.item > svg, .card-head > svg { width: 18px; height: 18px; flex: none; color: var(--muted); }
+.item .grow { min-width: 0; }
