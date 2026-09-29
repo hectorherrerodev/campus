@@ -6,7 +6,7 @@
 import { uid, today } from './util.js';
 
 const KEY = 'campus:v1';
-export const COLECCIONES = ['asignaturas', 'clases', 'eventos', 'documentos', 'tests', 'intentos', 'notas', 'cursosExtra'];
+export const COLECCIONES = ['asignaturas', 'clases', 'eventos', 'documentos', 'tests', 'intentos', 'notas', 'cursosExtra', 'asistencias'];
 export const SINGLES = ['progreso', 'ajustes'];
 
 export const defaultProgreso = () => ({
@@ -112,7 +112,7 @@ export function setSingle(name, patch, { silent = false } = {}) {
 
 /** Borra un registro y todo lo que cuelga de una asignatura. */
 export function removeAsignatura(id) {
-  ['clases', 'eventos', 'documentos', 'tests', 'notas'].forEach((c) => {
+  ['clases', 'eventos', 'documentos', 'tests', 'notas', 'asistencias'].forEach((c) => {
     all(c).filter((x) => x.asignaturaId === id).forEach((x) => remove(c, x.id, { silent: true }));
   });
   remove('asignaturas', id);

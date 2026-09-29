@@ -523,3 +523,12 @@ pre.code .gap { background: var(--hl); color: #1a2030; padding: 0 6px; border-ra
 .cal-ncls { font-size: 11px; color: var(--muted); font-weight: 600; }
 .chip svg { width: 13px; height: 13px; }
 @media (max-width: 700px) { .cal-ncls { display: none; } .cal-strip { gap: 1px; } .cal-strip i { height: 3px; } }
+.when.ok { color: var(--ok); }
+.item.visto .title { color: var(--muted); }
+.item .sub .tag { margin-left: 4px; vertical-align: 1px; }
+.tl-item { grid-template-columns: 58px 4px 1fr auto; }
+.tl-item .check { align-self: center; }
+.blk.vista { opacity: .55; }
+.blk .marca { position: absolute; top: 4px; right: 5px; width: 14px; height: 14px; }
+.blk .marca svg { width: 14px; height: 14px; }
+.cal-ev.repaso { border-left-style: dashed; background: color-mix(in srgb, var(--warn) 18%, transparent); }

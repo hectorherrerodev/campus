@@ -1,6 +1,6 @@
 // Service worker: guarda la app para que funcione sin conexión.
 // Sube el número de versión cuando publiques cambios para forzar la actualización.
-const VERSION = 'campus-v2';
+const VERSION = 'campus-v4';
 const APP = [
   './', 'index.html', 'manifest.webmanifest', 'config.js', 'styles.css',
   'app.js', 'clases.js', 'util.js', 'store.js', 'sync.js', 'files.js', 'demo.js', 'ics.js',

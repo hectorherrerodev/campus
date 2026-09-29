@@ -3,7 +3,7 @@
 // ============================================================
 import { esc, icon, DIAS_3, MESES, toMin, nowMin, descargar, today, addDays, parseISO } from './util.js';
 import * as store from './store.js';
-import { claseForm } from './common.js';
+import { claseForm, claseSheet, estadoClase } from './common.js';
 import { icsHorario } from './ics.js';
 import { clasesDelDia, festivo, horasSemana, lunesDe, esPuntual } from './clases.js';
 
@@ -70,7 +70,9 @@ export function render(root) {
           ${d.clases.map((c) => {
             const a = store.asignatura(c.asignaturaId);
             const h = y(toMin(c.fin)) - y(toMin(c.inicio));
-            return `<button class="blk ${esPuntual(c) ? 'puntual' : ''}" data-act="edit" data-id="${c.id}" style="--c:${a?.color || '#6b7280'};top:${y(toMin(c.inicio)) + 1}px;height:${h - 2}px" title="${esc(a?.nombre || '')} ${c.inicio}–${c.fin}${esPuntual(c) ? ' (solo este día)' : ''}">
+            const st = estadoClase(c, d.fecha);
+            return `<button class="blk ${esPuntual(c) ? 'puntual' : ''} ${st}" data-act="edit" data-id="${c.id}" data-fecha="${d.fecha}" style="--c:${a?.color || '#6b7280'};top:${y(toMin(c.inicio)) + 1}px;height:${h - 2}px" title="${esc(a?.nombre || '')} ${c.inicio}–${c.fin}${esPuntual(c) ? ' (solo este día)' : ''}">
+              ${st === 'vista' ? `<span class="marca" style="color:var(--ok)">${icon('check')}</span>` : st === 'pendiente' ? `<span class="marca" style="color:var(--warn)">${icon('horario')}</span>` : ''}
               <b>${esc(a?.abrev || a?.nombre || '?')}</b>${h > 40 ? `<span>${c.inicio}${c.aula ? ' · ' + esc(c.aula) : ''}</span>` : ''}</button>`;
           }).join('')}
           ${d.fecha === t && ahora > ini && ahora < fin ? `<div class="nowline" style="top:${y(ahora)}px"></div>` : ''}
@@ -81,14 +83,14 @@ export function render(root) {
       const a = store.asignatura(id);
       return `<span class="chip"><span class="sw" style="background:${a?.color}"></span>${esc(a?.abrev || a?.nombre || '?')} · ${String(+h.toFixed(1)).replace('.', ',')} h</span>`;
     }).join('')}</div></div>` : ''}
-    <p class="muted tiny" style="margin-top:14px">Borde continuo: clase de todas las semanas. Borde discontinuo: clase de un día concreto. Toca un hueco vacío para añadir una clase ese día.</p>`;
+    <p class="muted tiny" style="margin-top:14px">Borde continuo: clase de todas las semanas. Borde discontinuo: clase de un día concreto. ✓ vista · reloj: pendiente de ver. Toca una clase para marcarla, atrasarla o editarla, y un hueco vacío para añadir una clase ese día.</p>`;
 
   root.onclick = (e) => {
     const b = e.target.closest('[data-act]');
     if (b) {
       const act = b.dataset.act;
       if (act === 'nueva') claseForm();
-      if (act === 'edit') claseForm(store.get('clases', b.dataset.id));
+      if (act === 'edit') claseSheet(store.get('clases', b.dataset.id), b.dataset.fecha);
       if (act === 'ics') descargar('horario-campus.ics', icsHorario(), 'text/calendar');
       if (act === 'prev') { lunes = addDays(lunes, -7); render(root); }
       if (act === 'next') { lunes = addDays(lunes, 7); render(root); }

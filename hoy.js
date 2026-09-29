@@ -4,9 +4,9 @@
 import { esc, icon, today, fmtLong, fmtShort, toMin, nowMin, diffDays, addDays, DIAS, dow, parseISO } from './util.js';
 import * as store from './store.js';
 import * as P from './progreso.js';
-import { eventoItem, manejarEvento, eventoForm, claseForm, asignaturaForm } from './common.js';
+import { eventoItem, manejarEvento, eventoForm, claseForm, asignaturaForm, manejarClase, checkClase, etiquetaClase, repasoItem } from './common.js';
 import { hayDemo, borrarDemo } from './demo.js';
-import { clasesDelDia, proximosDias, festivo, esPuntual } from './clases.js';
+import { clasesDelDia, proximosDias, festivo, esPuntual, pendientesDeVer } from './clases.js';
 
 const DIAS_ENTREGAS = 30;
 
@@ -24,7 +24,9 @@ export function render(root) {
   const ahora = nowMin();
   const hoyClases = clasesDelDia(t);
   const actual = hoyClases.find((c) => toMin(c.inicio) <= ahora && ahora < toMin(c.fin));
-  const proximos = proximosDias(2);
+  const proximos = proximosDias(2, 60, { hoyEntero: true });
+  const porVer = pendientesDeVer();
+  const porVerHoy = porVer.filter((x) => x.repasarEl && x.repasarEl <= t).length;
   const siguienteBusqueda = proximosDias(3);
   const siguiente = siguienteBusqueda.flatMap((d) => d.clases.map((c) => ({ ...c, _fecha: d.fecha }))).find((c) => c !== actual && !(c._fecha === t && toMin(c.inicio) <= ahora));
 
@@ -56,11 +58,16 @@ export function render(root) {
     <div class="hoy-top">
       <div class="stack">
         ${ahoraCard(actual, siguiente, hoyClases, festivo(t))}
+        ${porVer.length ? `<div class="card">
+          <div class="card-head"><h2>Clases por ver</h2>${porVerHoy ? `<span class="tag festivo">${porVerHoy} para hoy</span>` : ''}</div>
+          <div class="list">${porVer.slice(0, 6).map(repasoItem).join('')}</div>
+          ${porVer.length > 6 ? `<p class="tiny muted" style="margin-top:6px">Y ${porVer.length - 6} más.</p>` : ''}
+        </div>` : ''}
         <div class="card">
           <div class="card-head"><h2>Próximas clases</h2><a class="btn ghost sm" href="#/horario">Ver semana ${icon('right')}</a></div>
           ${proximos.length ? proximos.map((d) => `
             <div class="day-group">
-              <div class="day-label ${d.fecha === t ? 'today' : ''}">${nombreDia(d.fecha)}${d.fecha === t ? ' · lo que queda' : ''}</div>
+              <div class="day-label ${d.fecha === t ? 'today' : ''}">${nombreDia(d.fecha)}</div>
               <div class="timeline">${d.clases.map((c) => claseFila(c, d.fecha, c === actual)).join('')}</div>
             </div>`).join('') : `<p class="muted">No tienes clases en las próximas semanas. Añádelas desde el Horario.</p>`}
           ${proxFestivo && diffDays(t, proxFestivo.fecha) <= 21 ? `<p class="small muted" style="margin-top:14px">Próximo festivo: <b>${esc(proxFestivo.titulo)}</b>, ${nombreDia(proxFestivo.fecha).toLowerCase()}.</p>` : ''}
@@ -82,6 +89,7 @@ export function render(root) {
     if (!b) return;
     const { act, id } = b.dataset;
     if (manejarEvento(act, id)) return;
+    if (manejarClase(act, b.dataset)) return;
     if (act === 'nueva-entrega') eventoForm();
     if (act === 'nueva-clase') claseForm({ dia: dow() < 5 ? dow() : 0, fecha: t });
     if (act === 'edit-clase') claseForm(store.get('clases', id));
@@ -92,11 +100,15 @@ export function render(root) {
 
 function claseFila(c, fecha, esAhora) {
   const a = store.asignatura(c.asignaturaId);
-  return `<button class="tl-item ${esAhora ? 'now' : ''}" data-act="edit-clase" data-id="${c.id}" style="background:none;border:0;text-align:left;cursor:pointer;width:100%;color:inherit">
+  const pasada = fecha === today() && toMin(c.fin) <= nowMin();
+  return `<div class="tl-item ${esAhora ? 'now' : ''} ${pasada ? 'past' : ''}">
     <span class="t">${c.inicio}</span><span class="b" style="background:${a?.color || 'var(--muted)'}"></span>
-    <div style="min-width:0"><div class="n">${esc(a?.nombre || 'Asignatura')}${esAhora ? ' <span class="tag entrega">Ahora</span>' : ''}</div>
-    <div class="muted small">${c.inicio}–${c.fin}${c.aula ? ' · ' + esc(c.aula) : ''}${c.nota ? ' · ' + esc(c.nota) : ''}${esPuntual(c) ? ' · solo este día' : ''}</div></div>
-  </button>`;
+    <button data-act="clase" data-id="${c.id}" data-fecha="${fecha}" style="background:none;border:0;text-align:left;cursor:pointer;color:inherit;padding:0;min-width:0">
+      <div class="n">${esc(a?.nombre || 'Asignatura')}${esAhora ? ' <span class="tag entrega">Ahora</span>' : ''}</div>
+      <div class="muted small">${c.inicio}–${c.fin}${c.aula ? ' · ' + esc(c.aula) : ''}${c.nota ? ' · ' + esc(c.nota) : ''}${esPuntual(c) ? ' · solo este día' : ''} ${etiquetaClase(c, fecha)}</div>
+    </button>
+    ${checkClase(c, fecha)}
+  </div>`;
 }
 
 function ahoraCard(actual, siguiente, hoyClases, fest) {
